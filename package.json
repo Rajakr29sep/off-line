@@ -1,0 +1,15 @@
+{
+  "name": "kiwix-emergency",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently -k \"npm:dev:backend\" \"npm:dev:frontend\" \"npm:dev:rag\"",
+    "dev:frontend": "npm --prefix frontend run dev",
+    "dev:backend": "npm --prefix backend run dev",
+    "dev:rag": "python -m uvicorn app.main:app --app-dir rag-service --host 127.0.0.1 --port 8000 --reload",
+    "index": "python scripts/build-index.py"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2"
+  }
+}
