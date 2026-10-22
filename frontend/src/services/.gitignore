@@ -18,4 +18,4 @@ __pycache__/
 
 # OS files
 .DS_Store
-Thumbs.dbgit commit -m "Build OFF-LINE emergency application"
+Thumbs.db

@@ -2,12 +2,13 @@
   "name": "kiwix-emergency",
   "version": "0.1.0",
   "private": true,
+  "type": "module",
   "scripts": {
-    "dev": "concurrently -k \"npm:dev:backend\" \"npm:dev:frontend\" \"npm:dev:rag\"",
+    "dev": "concurrently --kill-others-on-fail --prefix \"[{name}]\" --names \"backend,frontend,rag\" -c \"blue,green,yellow\" \"npm:dev:backend\" \"npm:dev:frontend\" \"npm:dev:rag\"",
     "dev:frontend": "npm --prefix frontend run dev",
     "dev:backend": "npm --prefix backend run dev",
-    "dev:rag": "python -m uvicorn app.main:app --app-dir rag-service --host 127.0.0.1 --port 8000 --reload",
-    "index": "python scripts/build-index.py"
+    "dev:rag": "node scripts/dev-rag.js",
+    "index": "node scripts/run-index.js"
   },
   "devDependencies": {
     "concurrently": "^9.1.2"

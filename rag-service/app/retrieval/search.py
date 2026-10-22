@@ -1,20 +1,17 @@
-
 import re
 import sqlite3
-
 from app.config import DB_PATH
-
 
 def search_passages(
     question: str,
-    category_id: str,
-    topic: str,
+    category_id: str = "emergency-knowledge",
+    topic: str = "",
     limit: int = 6,
 ):
     if not DB_PATH.exists():
         return []
 
-    # Search the user's actual question first.
+    # Search tokens from the question
     tokens = re.findall(r"[A-Za-z0-9]{2,}", question.lower())
     tokens = list(dict.fromkeys(tokens))[:20]
 
@@ -26,27 +23,28 @@ def search_passages(
     conn = sqlite3.connect(DB_PATH)
     conn.row_factory = sqlite3.Row
 
+    rows = []
     try:
-        # First, search within the selected category and topic.
-        rows = conn.execute(
-            """
-            SELECT p.id, p.source_zim, p.title, p.article_path,
-                   p.category, p.topic, p.chunk_text,
-                   bm25(passages_fts) AS rank
-            FROM passages_fts
-            JOIN passages p ON p.id = passages_fts.rowid
-            WHERE passages_fts MATCH ?
-              AND p.category = ?
-              AND p.topic = ?
-            ORDER BY rank
-            LIMIT ?
-            """,
-            (match_query, category_id, topic, limit),
-        ).fetchall()
+        # 1. Search within the selected category and topic if specific
+        if category_id and category_id not in ("emergency-knowledge", "general") and topic:
+            rows = conn.execute(
+                """
+                SELECT p.id, p.source_zim, p.title, p.article_path,
+                       p.category, p.topic, p.chunk_text,
+                       bm25(passages_fts) AS rank
+                FROM passages_fts
+                JOIN passages p ON p.id = passages_fts.rowid
+                WHERE passages_fts MATCH ?
+                  AND p.category = ?
+                  AND p.topic = ?
+                ORDER BY rank
+                LIMIT ?
+                """,
+                (match_query, category_id, topic, limit),
+            ).fetchall()
 
-        # If nothing matches, try the selected category.
-        # Never silently return unrelated categories.
-        if not rows:
+        # 2. Search within category if no match yet
+        if not rows and category_id and category_id not in ("emergency-knowledge", "general"):
             rows = conn.execute(
                 """
                 SELECT p.id, p.source_zim, p.title, p.article_path,
@@ -62,7 +60,24 @@ def search_passages(
                 (match_query, category_id, limit),
             ).fetchall()
 
-    except sqlite3.OperationalError:
+        # 3. Global search across all indexed passages if still empty
+        if not rows:
+            rows = conn.execute(
+                """
+                SELECT p.id, p.source_zim, p.title, p.article_path,
+                       p.category, p.topic, p.chunk_text,
+                       bm25(passages_fts) AS rank
+                FROM passages_fts
+                JOIN passages p ON p.id = passages_fts.rowid
+                WHERE passages_fts MATCH ?
+                ORDER BY rank
+                LIMIT ?
+                """,
+                (match_query, limit),
+            ).fetchall()
+
+    except sqlite3.OperationalError as exc:
+        print(f"[SQLite FTS Error]: {exc}")
         return []
 
     finally:

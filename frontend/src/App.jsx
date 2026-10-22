@@ -1,124 +1,125 @@
-import { Link } from "react-router-dom";
-import { BookOpen, ExternalLink, ShieldAlert, MapPin } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Link, Routes, Route, useLocation } from "react-router-dom";
+import {
+  BookOpen,
+  ExternalLink,
+  ShieldAlert,
+  MapPin,
+  Search,
+  Activity,
+  Layers,
+  Heart,
+} from "lucide-react";
 import HomePage from "./pages/HomePage.jsx";
+import CategoryPage from "./pages/CategoryPage.jsx";
+import TopicPage from "./pages/TopicPage.jsx";
+import MapPage from "./pages/MapPage.jsx";
+import { fetchAppHealth } from "./services/api.js";
 import "leaflet/dist/leaflet.css";
 import "./map.css";
 
 export default function App() {
+  const location = useLocation();
+  const [health, setHealth] = useState(null);
+
+  useEffect(() => {
+    fetchAppHealth().then(setHealth);
+    const interval = setInterval(() => {
+      fetchAppHealth().then(setHealth);
+    }, 15000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const ragOnline = health?.services?.ragService?.status === "online";
+  const expressOnline = health?.services?.express?.status === "online";
+  const kiwixOnline = health?.services?.kiwix?.status === "online";
+
   return (
     <div className="app-shell">
+      {/* Top Navigation Bar */}
       <header className="topbar">
         <Link to="/" className="brand" aria-label="Kiwix Emergency home">
-          <ShieldAlert size={24} aria-hidden="true" />
+          <ShieldAlert size={26} aria-hidden="true" style={{ color: "#38bdf8" }} />
           <span>Kiwix Emergency</span>
         </Link>
 
         <nav className="top-navigation" aria-label="Main navigation">
-          <Link to="/">Search</Link>
+          <Link
+            to="/"
+            className={location.pathname === "/" ? "active-nav" : ""}
+          >
+            <Search size={15} /> Search &amp; Guidance
+          </Link>
+
+          <Link
+            to="/map"
+            className={location.pathname === "/map" ? "active-nav" : ""}
+          >
+            <MapPin size={15} /> Emergency Map
+          </Link>
+
           <a
             href="/kiwix/"
             target="_blank"
             rel="noopener noreferrer"
+            title="Browse full ZIM archive in Kiwix reader"
           >
-            <BookOpen size={16} aria-hidden="true" />
-            Offline library
-            <ExternalLink size={13} aria-hidden="true" />
+            <BookOpen size={15} aria-hidden="true" />
+            Offline Library
+            <ExternalLink size={12} aria-hidden="true" />
           </a>
         </nav>
 
-        <span className="offline-badge">
-          <span className="status-dot" aria-hidden="true" />
-          OFFLINE FIRST
-        </span>
+        {/* Live Service Status Bar */}
+        <div className="app-health-pills" title="Real-time appliance service connectivity">
+          <span
+            className={`health-pill ${ragOnline ? "pill-green" : "pill-amber"}`}
+            title={`RAG Service: ${ragOnline ? "Online (Port 8000)" : "Offline"}`}
+          >
+            <span className="dot" /> RAG: {ragOnline ? "8000" : "Off"}
+          </span>
+
+          <span
+            className={`health-pill ${expressOnline ? "pill-green" : "pill-amber"}`}
+            title={`Express API: ${expressOnline ? "Online (Port 3000)" : "Offline"}`}
+          >
+            <span className="dot" /> API: {expressOnline ? "3000" : "Off"}
+          </span>
+
+          <span
+            className={`health-pill ${kiwixOnline ? "pill-green" : "pill-dim"}`}
+            title={`Kiwix Reader: ${kiwixOnline ? "Online (Port 8080)" : "Standby (Port 8080)"}`}
+          >
+            <span className="dot" /> Kiwix: {kiwixOnline ? "8080" : "Standby"}
+          </span>
+        </div>
       </header>
 
+      {/* Main Content Router */}
       <main className="main-content">
-        <HomePage />
-
-        {/* Offline map section */}
-        <section className="map-panel" aria-labelledby="emergency-map-title">
-          <div className="map-header">
-            <div>
-              <p className="eyebrow">EMERGENCY NAVIGATION</p>
-              <h2 id="emergency-map-title">Offline Emergency Map</h2>
-              <p>
-                Access locally available map data for emergency navigation.
-              </p>
-            </div>
-
-            <span className="map-status">
-              <span className="map-status-dot" />
-              Offline ready
-            </span>
-          </div>
-
-          <div className="map-container">
-            <div className="map-placeholder">
-              <MapPin size={42} />
-              <h3>Offline Map Area</h3>
-              <p>
-                Your local map tiles will appear here when connected to a
-                configured offline map source.
-              </p>
-            </div>
-          </div>
-
-          <div className="map-actions">
-            <button
-              type="button"
-              onClick={() =>
-                document.querySelector(".map-container")?.scrollIntoView({
-                  behavior: "smooth",
-                  block: "center",
-                })
-              }
-            >
-              <MapPin size={16} style={{ verticalAlign: "middle" }} /> View map
-            </button>
-          </div>
-        </section>
-
-        <section className="panel osm-wiki-card" aria-labelledby="osm-wiki-title">
-          <div className="osm-wiki-icon" aria-hidden="true">
-            <BookOpen size={23} />
-          </div>
-
-          <div className="osm-wiki-copy">
-            <p className="eyebrow">OFFLINE MAP REFERENCE</p>
-            <h2 id="osm-wiki-title">OpenStreetMap Wiki</h2>
-            <p>
-              Browse locally available OpenStreetMap documentation, mapping
-              guides, and reference articles through your Kiwix library.
-            </p>
-            <small>
-              Archive: openstreetmap-wiki_en_all_nopic_2026-10.zim
-            </small>
-          </div>
-
-          <a
-            className="button-primary osm-wiki-button"
-            href="/kiwix/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <BookOpen size={16} aria-hidden="true" />
-            Open Wiki
-            <ExternalLink size={14} aria-hidden="true" />
-          </a>
-        </section>
+        <Routes>
+          <Route path="/" element={<HomePage />} />
+          <Route path="/map" element={<MapPage />} />
+          <Route path="/category/:categoryId" element={<CategoryPage />} />
+          <Route
+            path="/category/:categoryId/topic/:topicSlug"
+            element={<TopicPage />}
+          />
+          <Route path="*" element={<HomePage />} />
+        </Routes>
       </main>
 
+      {/* Footer */}
       <footer className="app-footer">
-        <strong>KIWIX EMERGENCY</strong>
-        <span>Offline knowledge · Evidence-based retrieval</span>
+        <div>
+          <strong>KIWIX EMERGENCY APPLIANCE</strong>
+          <span>Local ZIM Knowledge · Grounded Offline Retrieval</span>
+        </div>
         <small>
-          In an immediate emergency, contact local emergency services.
-          Offline information may be incomplete.
+          In an immediate life-threatening emergency, call <strong>112</strong>. Offline information is
+          for guidance and contingency planning when networks fail.
         </small>
       </footer>
     </div>
   );
 }
-
-// Start the Python service separately if needed:
-// .\.venv\Scripts\python.exe -m uvicorn app.main:app --app-dir rag-service --host 127.0.0.1 --port 8000 --reload
